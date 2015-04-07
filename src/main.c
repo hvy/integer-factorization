@@ -8,6 +8,7 @@
 
 #include "trial_division.h"
 #include "pollards_rho.h"
+#include "quadratic_sieve.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,16 +55,16 @@ int main(int argc, char *argv[]) {
     get_fst_primes(trial_division_primec, trial_division_primev);
     printf(" done (%luMB).\n\n", trial_division_primec * sizeof(mpz_t) / 1000000);
 
-    trial_division(factor, n, trial_division_primec, trial_division_primev);
+    //trial_division(factor, n, trial_division_primec, trial_division_primev);
 
     /* Quadratic Sieve */
+    quadratic_sieve(factor, n, trial_division_primec, trial_division_primev);
+    free(trial_division_primev);
   }  
   
   printf("\tFactor: ");
   mpz_out_str(stdout, BASE, factor);
   printf("\n");
-
-  free(trial_division_primev);
 
   return 0;
 }

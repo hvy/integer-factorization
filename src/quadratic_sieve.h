@@ -4,6 +4,6 @@
 #include <stdio.h>
 #include <gmp.h>
 
-void quadratic_sieve(mpz_t factor, mpz_t n);
+void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev);
 
 #endif
