@@ -4,6 +4,6 @@
 #include <stdio.h>
 #include <gmp.h>
 
-void pollard_rho(mpz_t factor, mpz_t n, gmp_randstate_t rnd_state);
+void pollard_rho(mpz_t factor, const mpz_t n, gmp_randstate_t rnd_state);
 
 #endif

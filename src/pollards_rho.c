@@ -2,7 +2,7 @@
 
 #include <assert.h>
 
-void pollard_rho(mpz_t factor, mpz_t n, gmp_randstate_t rnd_state) {
+void pollard_rho(mpz_t factor, const mpz_t n, gmp_randstate_t rnd_state) {
 
   /* Assert n != 1 */
   assert(0 != mpz_cmp_ui(n, 1));
