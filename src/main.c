@@ -10,15 +10,18 @@
 #include "pollards_rho.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <gmp.h>
 
 #define BASE                  10
-#define TRIAL_DIVISION_PRIMES 100000
+#define TRIAL_DIVISION_PRIMES 1000000
 
 gmp_randstate_t rnd_state;
 
 int main(int argc, char *argv[]) {
-    
+  
+  int trial_division_primec;
+  mpz_t *trial_division_primev;  
   mpz_t n, factor;
   gmp_randinit_default(rnd_state);
 
@@ -32,7 +35,7 @@ int main(int argc, char *argv[]) {
   /* Print the number that will be factorized */
   printf("\tFactorizing: ");
   mpz_out_str(stdout, BASE, n);
-  printf("\n");
+  printf("\n\n");
 
   /* Set the factor to n if n == 1 or if n is most likely a prime, else use 
      Pollard's rho algorithm to find a prime factor */
@@ -43,10 +46,15 @@ int main(int argc, char *argv[]) {
     //pollard_rho(factor, n, rnd_state);
     
     /* Trial division */
-    int num_precomputed_primes = TRIAL_DIVISION_PRIMES;
-    mpz_t precomputed_primes[num_precomputed_primes];
-    get_fst_primes(num_precomputed_primes, precomputed_primes);
-    trial_division(factor, n, num_precomputed_primes, precomputed_primes);
+    trial_division_primec = TRIAL_DIVISION_PRIMES;
+    trial_division_primev = (mpz_t *) malloc(trial_division_primec * sizeof(mpz_t));
+
+    printf("\tComputing the %d first primes...", trial_division_primec);
+    fflush(stdout);
+    get_fst_primes(trial_division_primec, trial_division_primev);
+    printf(" done (%luMB).\n\n", trial_division_primec * sizeof(mpz_t) / 1000000);
+
+    trial_division(factor, n, trial_division_primec, trial_division_primev);
 
     /* Quadratic Sieve */
   }  
@@ -54,6 +62,8 @@ int main(int argc, char *argv[]) {
   printf("\tFactor: ");
   mpz_out_str(stdout, BASE, factor);
   printf("\n");
+
+  free(trial_division_primev);
 
   return 0;
 }
