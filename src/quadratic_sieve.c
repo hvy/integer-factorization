@@ -57,7 +57,9 @@ int factor_base(long *c, mpz_t *v, long b, const mpz_t n, const int primec, mpz_
       }
     }  
   }
-  
+
+  mpz_clear(b_mpz);
+    
   return 0;
 }
 
@@ -92,7 +94,6 @@ void tonelli_shanks(mpz_t x, const mpz_t p, const mpz_t n) {
     mpz_add_ui(s, s, 1);
     mpz_divexact_ui(q, q, 2);
   } 
-
 
   /* Find the quadratic non-residue */ 
   while(-1 != mpz_legendre(z, p)) {
@@ -130,6 +131,21 @@ void tonelli_shanks(mpz_t x, const mpz_t p, const mpz_t n) {
       }
     }
   }
+
+  mpz_clear(two);
+  mpz_clear(minus_one);
+  mpz_clear(p_minus_one);
+  mpz_clear(q);
+  mpz_clear(s);
+  mpz_clear(z);
+  mpz_clear(c);
+  mpz_clear(r);
+  mpz_clear(t);
+  mpz_clear(m);
+  mpz_clear(tmp);
+  mpz_clear(tmp2);
+  mpz_clear(t_sqrt);
+  mpz_clear(b);
 }
 
 
