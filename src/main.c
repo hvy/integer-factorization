@@ -15,7 +15,7 @@
 #include <gmp.h>
 
 #define BASE                  10
-#define TRIAL_DIVISION_PRIMES 1000000
+#define TRIAL_DIVISION_PRIMES 10000
 
 gmp_randstate_t rnd_state;
 
@@ -27,16 +27,16 @@ int main(int argc, char *argv[]) {
   gmp_randinit_default(rnd_state);
 
   if(argc < 2) {
-    printf("No argument provided, will factorize build in number\n");  
+    printf("[WARNING] No argument provided, will factorize build in number.\n");  
     mpz_init_set_str(n, "502560280658509", BASE);
   } else {
     mpz_init_set_str(n, argv[1], BASE);
   }
 
   /* Print the number that will be factorized */
-  printf("\tFactorizing: ");
+  printf("[INFO] Starting to factorize: ");
   mpz_out_str(stdout, BASE, n);
-  printf("\n\n");
+  printf("\n");
 
   /* Set the factor to n if n == 1 or if n is most likely a prime, else use 
      Pollard's rho algorithm to find a prime factor */
@@ -50,10 +50,10 @@ int main(int argc, char *argv[]) {
     trial_division_primec = TRIAL_DIVISION_PRIMES;
     trial_division_primev = (mpz_t *) malloc(trial_division_primec * sizeof(mpz_t));
 
-    printf("\tComputing the %d first primes...", trial_division_primec);
+    printf("[INFO] Computing the %d first primes...", trial_division_primec);
     fflush(stdout);
     get_fst_primes(trial_division_primec, trial_division_primev);
-    printf(" done (%luMB).\n\n", trial_division_primec * sizeof(mpz_t) / 1000000);
+    printf(" done (%luMB).\n", trial_division_primec * sizeof(mpz_t) / 1000000);
 
     //trial_division(factor, n, trial_division_primec, trial_division_primev);
 
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     free(trial_division_primev);
   }  
   
-  printf("\tFactor: ");
+  printf("[INFO] Found factor: ");
   mpz_out_str(stdout, BASE, factor);
   printf("\n");
 
