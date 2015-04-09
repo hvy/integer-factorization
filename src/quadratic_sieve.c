@@ -1,6 +1,7 @@
 #include "quadratic_sieve.h"
 
 #include <stdlib.h>
+#include <limits.h>
 #include <math.h>
 
 #define BATCH_SIZE  1000000
@@ -24,10 +25,24 @@ long sieving_interval(long b) {
   return 4 * b * b;  
 }
 
-void get_q(mpz_t result, const mpz_t x, const mpz_t n, const mpz_t sqrt_n) {
-  mpz_add(result, x, sqrt_n);
-  mpz_pow_ui(result, result, 2);
-  mpz_sub(result, result, n);
+void get_q(mpz_t q, const mpz_t x, const mpz_t n, const mpz_t sqrt_n) {
+  mpz_add(q, x, sqrt_n);
+  mpz_pow_ui(q, q, 2);
+  mpz_sub(q, q, n);
+}
+
+void q_prim(mpz_t q, const mpz_t x, const mpz_t sqrt_n) {
+  mpz_add(q, x, sqrt_n);
+  mpz_mul_ui(q, q, 2);
+}
+
+void q_prim_inverse(mpz_t q, const mpz_t x, const mpz_t sqrt_n, const mpz_t p) {
+  q_prim(q, x, sqrt_n);
+  int successfull = mpz_invert(q, q, p);
+  if(0 == successfull /* Error, modular inverse didn't exist */) {
+    printf("[ERROR] Failed in q_prim_inverse");
+    mpz_clear(q);
+  }
 }
 
 int factor_base(long *c, mpz_t *v, long b, const mpz_t n, const int primec, mpz_t *primev) {
@@ -148,17 +163,46 @@ void tonelli_shanks(mpz_t x, const mpz_t p, const mpz_t n) {
   mpz_clear(b);
 }
 
+void hensel_lift(mpz_t x, const mpz_t r, const mpz_t p, const int k, const mpz_t n, const mpz_t n_floor_sqrt) {
+
+  mpz_t p_pow_k, f, f_prim_inverse, t, tmp;
+
+  mpz_init(p_pow_k);
+  mpz_init(f);
+  mpz_init(f_prim_inverse);
+  mpz_init(t);
+  mpz_init(tmp);
+
+  mpz_pow_ui(p_pow_k, p, k);
+  get_q(f, r, n, n_floor_sqrt);
+  q_prim_inverse(f_prim_inverse, r, n_floor_sqrt, p_pow_k);
+  mpz_mul(t, f, f_prim_inverse);
+  mpz_cdiv_q(t, t, p_pow_k); /* TODO use mpz_divexact if we know in advance that p_pow_k divides t */
+  mpz_mul_si(t, t, -1);
+  mpz_mul(tmp, t, p_pow_k);
+  mpz_add(x, r, tmp);
+  mpz_pow_ui(tmp, p, (k + 1));
+  mpz_mod(x, x, tmp); 
+
+  mpz_clear(p_pow_k);
+  mpz_clear(f);
+  mpz_clear(f_prim_inverse);
+  mpz_clear(t);
+  mpz_clear(tmp);
+}
 
 int smooth_numbers(long *smooth_numbercp, mpz_t *smooth_numberv, 
   const long factor_basec, const mpz_t *factor_basev, const long m, const mpz_t n) {
- 
+
+  int int_max = INT_MAX; 
   int batch_size = BATCH_SIZE;
   int max_factor_pow = 8;
   float *logsv = (float *) malloc(batch_size * sizeof(float));
   float current_log = 0;
   mpz_t n_floored_sqrt; // TODO optimize speed by implementing ceiling sqrt
   mpz_t mpz_offset, mpz_batch_size, offset_batch_size, q, q_offset_tmp, q_offset;
-  mpz_t i0, i1, bi0, bi1;
+  mpz_t p_pow;
+  mpz_t i0, i1, bi0, bi1, d_i;
 
   mpz_init(i0);
   mpz_init(i1);
@@ -173,6 +217,8 @@ int smooth_numbers(long *smooth_numbercp, mpz_t *smooth_numberv,
   mpz_set_ui(mpz_batch_size, batch_size);
   mpz_init(n_floored_sqrt);
   mpz_sqrt(n_floored_sqrt, n);
+  mpz_init(p_pow);
+  mpz_init(d_i);
 
   for(long offset = 0; offset * batch_size < m && *smooth_numbercp < factor_basec; ++offset) {
     mpz_set_si(mpz_offset, offset);
@@ -215,10 +261,32 @@ int smooth_numbers(long *smooth_numbercp, mpz_t *smooth_numberv,
       mpz_sub(i1, bi1, n_floored_sqrt);
       mpz_mod(i0, i0, factor_basev[i]);
       mpz_mod(i1, i1, factor_basev[i]);
-       
+
+      for(int t = 1; t <= max_factor_pow; ++t) {
+        mpz_pow_ui(p_pow, factor_basev[i], t);
+        int p_powi = -1;
+        if(0 >= mpz_cmp_ui(p_pow, int_max) /* p_pow < INT_MAX */) {
+          p_powi = mpz_get_ui(p_pow);
+        }
+        
+        /* Higher powers than 1 requires Hensel Lift */
+        if(t > 1) {
+          hensel_lift(bi0, i0, factor_basev[i], t - 1, n, n_floored_sqrt);
+          hensel_lift(bi1, i1, factor_basev[i], t - 1, n, n_floored_sqrt);
+          mpz_set(i0, bi0);
+          mpz_set(i1, bi1);
+        }
+
+        /* Compute the difference between the indices once, then we only need
+           the first index. */
+      
+                
+      }       
     }
   }
   
+  mpz_clear(d_i);
+
   free(logsv);
     
   return 0;
