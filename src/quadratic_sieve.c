@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define BATCH_SIZE  100000
+#define BATCH_SIZE  1000000
 
 struct mpz_t_pair {
   mpz_t x, y;  
@@ -69,6 +69,67 @@ int factor_base(long *c, mpz_t *v, long b, const mpz_t n, const int primec, mpz_
             the Legendre symbol (n/p) = 1 */ 
 void tonelli_shanks(mpz_t x, const mpz_t p, const mpz_t n) {
 
+  mpz_t two, minus_one, p_minus_one, q, s, z, c, r, t, m, tmp, tmp2, t_sqrt, b;
+
+  mpz_init_set_ui(two, 2);
+  mpz_init_set_ui(minus_one, -1);
+  mpz_init(p_minus_one);
+  mpz_init(q);
+  mpz_init_set_ui(s, 0);
+  mpz_init_set_ui(z, 2);
+  mpz_init(c);
+  mpz_init(r);
+  mpz_init(t);
+  mpz_init(m);
+  mpz_init(tmp);
+  mpz_init(tmp2);
+  mpz_init(t_sqrt);
+  mpz_init(b);
+  
+  mpz_sub_ui(p_minus_one, p, 1);
+  mpz_set(q, p_minus_one);
+  while(0 != mpz_even_p(q) /* while q is even */) {
+    mpz_add_ui(s, s, 1);
+    mpz_divexact_ui(q, q, 2);
+  } 
+
+
+  /* Find the quadratic non-residue */ 
+  while(-1 != mpz_legendre(z, p)) {
+    mpz_add_ui(z, z, 1);
+  }
+  
+  mpz_powm(c, z, q, p);
+  mpz_add_ui(tmp, q, 1); /* q is odd, so tmp will be even */
+  mpz_divexact_ui(tmp, tmp, 2);
+  mpz_powm(r, n, tmp, p);
+  mpz_powm(t, n, q, p);
+  mpz_set(m, s);
+
+  while(1) {
+    if(0 == mpz_cmp_ui(t, 1) /* t == 1 */) {
+      mpz_set(x, r);
+      break;
+    } else {
+      long msl = mpz_get_si(m);
+      for(long i = 0; i < msl; ++i) {
+        mpz_pow_ui(tmp, two, i);
+        mpz_powm(t_sqrt, t, tmp, p);
+        if(0 == mpz_cmp_ui(t_sqrt, 1) /* t^(1/2) == 1 */) {
+          mpz_pow_ui(tmp, two, msl - i - 1);
+          mpz_powm(b, c, tmp, p);
+          mpz_mul(r, r, b);
+          mpz_mod(r, r, p);
+          mpz_pow_ui(tmp, b, 2);
+          mpz_mul(t, t, tmp);
+          mpz_mod(t, t, p);
+          mpz_mod(c, tmp, p);
+          mpz_set_ui(m, i);
+          break;
+        }    
+      }
+    }
+  }
 }
 
 

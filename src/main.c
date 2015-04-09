@@ -15,7 +15,7 @@
 #include <gmp.h>
 
 #define BASE                  10
-#define TRIAL_DIVISION_PRIMES 10000
+#define TRIAL_DIVISION_PRIMES 1000000
 
 gmp_randstate_t rnd_state;
 
