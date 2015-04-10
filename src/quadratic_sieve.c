@@ -4,7 +4,7 @@
 #include <limits.h>
 #include <math.h>
 
-#define BATCH_SIZE  1000000
+#define BATCH_SIZE  100000000
 
 struct mpz_t_pair {
   mpz_t x, y;  
@@ -13,7 +13,7 @@ struct mpz_t_pair {
 /* Computes the smoothness bound B, given n. The smoothness bound B will be 
    the size of the factor base. The algorithm is inspired by Torbjorn 
    Granlund */
-long smoothness_bound(mpz_t n) {
+long smoothness_bound(const mpz_t n) {
   double nd = mpz_get_d(n);
   double b = 2 * exp(0.5 * sqrt(log(nd) * log(log(nd))));
   return (long) b;
@@ -21,7 +21,7 @@ long smoothness_bound(mpz_t n) {
 
 /* Computes the sieving interval M, given b. The algorithm is inspired 
    by Eric Landquist. The quadratic sieve factoring algorithm, 2001. */
-long sieving_interval(long b) {
+long sieving_interval(const long b) {
   return 4 * b * b;  
 }
 
@@ -191,8 +191,11 @@ void hensel_lift(mpz_t x, const mpz_t r, const mpz_t p, const int k, const mpz_t
   mpz_clear(tmp);
 }
 
-int smooth_numbers(long *smooth_numbercp, mpz_t *smooth_numberv, 
-  const long factor_basec, const mpz_t *factor_basev, const long m, const mpz_t n) {
+int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv, 
+  const long factor_basec, const mpz_t *factor_basev, const long m, 
+  const mpz_t n) {
+  
+  *smooth_numberscp = 0;
 
   int int_max = INT_MAX; 
   int batch_size = BATCH_SIZE;
@@ -203,6 +206,9 @@ int smooth_numbers(long *smooth_numbercp, mpz_t *smooth_numberv,
   mpz_t mpz_offset, mpz_batch_size, offset_batch_size, q, q_offset_tmp, q_offset;
   mpz_t p_pow;
   mpz_t i0, i1, bi0, bi1, d_i;
+  mpz_t tmp;
+  mpz_t offset_diff, offset_multiples, i0_offset;
+  mpz_t x;
 
   mpz_init(i0);
   mpz_init(i1);
@@ -219,12 +225,17 @@ int smooth_numbers(long *smooth_numbercp, mpz_t *smooth_numberv,
   mpz_sqrt(n_floored_sqrt, n);
   mpz_init(p_pow);
   mpz_init(d_i);
+  mpz_init(tmp);
+  mpz_init(offset_diff);
+  mpz_init(offset_multiples);
+  mpz_init(i0_offset);
+  mpz_init(x);
 
-  for(long offset = 0; offset * batch_size < m && *smooth_numbercp < factor_basec; ++offset) {
+  for(long offset = 0; offset * batch_size < m && *smooth_numberscp < factor_basec; ++offset) {
     mpz_set_si(mpz_offset, offset);
     mpz_mul(offset_batch_size, mpz_offset, mpz_batch_size);
 
-    printf("[INFO] Offset: %ld Smooth numbers: %ld\n", offset, *smooth_numbercp);
+    printf("[INFO] Offset: %ld Smooth numbers: %ld\n", offset, *smooth_numberscp);
     fflush(stdout);
 
     /* Initialize each element to the same value since the logs of the big 
@@ -232,9 +243,8 @@ int smooth_numbers(long *smooth_numbercp, mpz_t *smooth_numberv,
     long q_offset_ui = (offset + 1) * batch_size;
     mpz_set_ui(q_offset_tmp, q_offset_ui);
     get_q(q_offset, q_offset_tmp, n, n_floored_sqrt);
-    current_log = (float) log(labs(mpz_get_d(q_offset)));
 
-    printf("q offset: %f\n", current_log);
+    current_log = (float) log(fabs(mpz_get_d(q_offset)));
 
     for(int i = 0; i < batch_size; ++i) {
       logsv[i] = current_log;  
@@ -279,10 +289,86 @@ int smooth_numbers(long *smooth_numbercp, mpz_t *smooth_numberv,
 
         /* Compute the difference between the indices once, then we only need
            the first index. */
-      
-                
+        mpz_sub(d_i, i1, i0);
+        int d_ii = mpz_get_si(d_i);      
+        if(d_ii < 0) {
+          mpz_set(tmp, i0);
+          mpz_set(i0, i1);
+          mpz_set(i1, tmp);
+          d_ii *= -1;
+        }           
+        
+        /* Compute the new offset. */
+        mpz_sub(offset_diff, offset_batch_size, i0);
+        mpz_cdiv_q(offset_multiples, offset_diff, p_pow);
+        mpz_mod(tmp, offset_diff, p_pow);
+        if(0 != mpz_cmp_ui(tmp, 0)) {
+          mpz_add_ui(offset_multiples, offset_multiples, 1);
+        }
+
+        /* Compute the new i0 with the offset */
+        mpz_mul(i0_offset, offset_multiples, p_pow);
+        mpz_add(i0_offset, i0_offset, i0);
+
+        mpz_add_ui(tmp, offset_batch_size, batch_size);
+        if(0 <= mpz_cmp(i0_offset, offset_batch_size) &&
+            0 >= mpz_cmp(i0_offset, tmp) /* inside offset range */) {
+          mpz_mod_ui(i0_offset, i0_offset, batch_size);
+        
+          if(p_powi > 0 /* p_pow <= INT_MAX */) {
+            int j;
+            for(j = mpz_get_si(i0_offset) + d_ii; j < batch_size &&
+              j >= 0; j += p_powi) {
+              logsv[j - d_ii] -= log_p;
+              logsv[j] -= log_p;
+            }
+
+            /* Make sure that the lower index is inside the range */
+            if((j - d_ii) < batch_size && (j - d_ii) >= 0) {
+              logsv[j - d_ii] -= log_p;
+            }
+          } else /* p_pow is too big, we only add it once */ {
+            int i0_offseti = mpz_get_si(i0_offset);
+            logsv[i0_offseti] -= log_p;
+            if((i0_offseti + d_ii) < batch_size && (i0_offseti + d_ii) >= 0) {
+              logsv[i0_offseti + d_ii] -= log_p;
+            }
+          }
+        }
       }       
     }
+  
+    long potential = 0;
+    long actual = 0;
+    double biggest_root_log = log(mpz_get_si(factor_basev[factor_basec - 1]));
+    for(int i = 0; i < batch_size && *smooth_numberscp <= factor_basec; ++i) {
+      if(fabs(logsv[i]) <= (biggest_root_log + 0.5) 
+        /* potiential root, do trial division */) {
+        ++potential;
+        mpz_set_ui(x, offset * batch_size + i);
+        get_q(q, x, n, n_floored_sqrt);
+        for(long factor_base_i = 0; factor_base_i < factor_basec; 
+          ++factor_base_i) {
+          mpz_mod(tmp, q, factor_basev[factor_base_i]);
+          if(0 == mpz_cmp_ui(tmp, 0) /* divisible by this root */) {
+            do {
+              mpz_cdiv_q(q, q, factor_basev[factor_base_i]);
+              mpz_mod(tmp, q, factor_basev[factor_base_i]);
+            } while (0 == mpz_cmp_ui(tmp, 0));
+            if(0 == mpz_cmp_ui(q, 1)) {
+              ++actual;
+              mpz_add(smooth_numbersv[*smooth_numberscp], x, n_floored_sqrt);
+              // TODO Have another same length vector that corresponds to the pair.
+              // TODO It needs to be assed as an argument and malloced.
+              ++(*smooth_numberscp);
+              break;
+            }
+          } 
+        }
+      } 
+    }
+
+    printf("[INFO] Smooth numbers found in batch: %ld / %ld\n", actual, potential);
   }
   
   mpz_clear(d_i);

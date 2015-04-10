@@ -9,6 +9,7 @@
 
 void test_tonelli_shanks();
 void test_hensel_lift();
+void test_smooth_numbers();
 
 int main() {
   
@@ -16,7 +17,8 @@ int main() {
 
   test_tonelli_shanks();
   test_hensel_lift();
-
+  test_smooth_numbers();
+  
   printf("[INFO] Finished all tests without errors.\n");
 
   return 0;
@@ -112,4 +114,58 @@ void test_hensel_lift() {
   mpz_clear(i1);
   mpz_clear(q);
   mpz_clear(p_pow);
+}
+
+void test_smooth_numbers() {
+  
+  printf("[INFO] Starting Smooth Numbers...\n");
+
+  int trial_division_primec;
+  mpz_t n, *trial_division_primev, *factor_basev, *smooth_numberv;
+  long b, m, factor_basec, smooth_numberc;
+  char *n_str = "34567876234234234242342343242342342342345231432345";
+ 
+  mpz_init_set_str(n, n_str, 10);
+  b = smoothness_bound(n);
+  m = sieving_interval(b);       
+  
+  printf("[INFO] Smoothness bound, B: %ld\n", b);                               
+  printf("[INFO] Sieving interval, M: %ld\n", m);        
+
+  /* Precompute the 1000000 first primes */
+  trial_division_primec = 1000000;
+  trial_division_primev = 
+    (mpz_t *) malloc(trial_division_primec * sizeof(mpz_t));
+  get_fst_primes(trial_division_primec, trial_division_primev);        
+  
+  /* Generate the factor base */
+  factor_basec = 0;
+  factor_basev = (mpz_t *) malloc(b * sizeof(mpz_t));
+  int factor_base_result = factor_base(&factor_basec, factor_basev, b, n, 
+    trial_division_primec, trial_division_primev);
+  if(0 == factor_base_result) {                                                 
+    printf(" done.\n");                                                         
+    printf("[INFO] Size of factor base: %ld\n", factor_basec);                  
+  } else {                                                                      
+    printf(" failed.\n");                                                       
+  }    
+ 
+  /* Find the smooth numbers using the precomputed primes and 
+   the factor base */ 
+  smooth_numberc = 0;
+  smooth_numberv = (mpz_t *) malloc(b * sizeof(mpz_t));
+  smooth_numbers(&smooth_numberc, smooth_numberv, factor_basec, factor_basev, 
+    m, n);
+  
+  printf(" done.\n");
+   
+  for(int i = 0; i < smooth_numberc; ++i) {
+    printf("Smooth number %d:\t%ld\n", (i + 1), mpz_get_si(smooth_numberv[i])); 
+  }
+  
+  free(trial_division_primev);
+  free(factor_basev);
+  free(smooth_numberv);
+
+  mpz_clear(n);
 }
