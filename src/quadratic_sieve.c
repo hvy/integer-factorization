@@ -202,7 +202,7 @@ int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv,
   int max_factor_pow = 8;
   float *logsv = (float *) malloc(batch_size * sizeof(float));
   float current_log = 0;
-  mpz_t n_floored_sqrt; // TODO optimize speed by implementing ceiling sqrt
+  mpz_t smooth_num, n_floored_sqrt; // TODO optimize speed by implementing ceiling sqrt
   mpz_t mpz_offset, mpz_batch_size, offset_batch_size, q, q_offset_tmp, q_offset;
   mpz_t p_pow;
   mpz_t i0, i1, bi0, bi1, d_i;
@@ -210,6 +210,7 @@ int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv,
   mpz_t offset_diff, offset_multiples, i0_offset;
   mpz_t x;
 
+  mpz_init(smooth_num);
   mpz_init(i0);
   mpz_init(i1);
   mpz_init(bi0);
@@ -357,9 +358,11 @@ int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv,
             } while (0 == mpz_cmp_ui(tmp, 0));
             if(0 == mpz_cmp_ui(q, 1)) {
               ++actual;
-              mpz_add(smooth_numbersv[*smooth_numberscp], x, n_floored_sqrt);
+              //mpz_add(smooth_numbersv[*smooth_numberscp], x, n_floored_sqrt);
               // TODO Have another same length vector that corresponds to the pair.
               // TODO It needs to be assed as an argument and malloced.
+              get_q(smooth_num, x, n, n_floored_sqrt);
+              mpz_set(smooth_numbersv[*smooth_numberscp], smooth_num);
               ++(*smooth_numberscp);
               break;
             }
@@ -377,11 +380,21 @@ int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv,
     
   return 0;
 }
+  
+void gaussian_elimination(mpz_t factor, const mpz_t n, int smooth_numberc, 
+  mpz_t const *smooth_numberv, mpz_t const *factor_expv) {
+  
+  // TODO Get left null space
+}
 
 void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev) {
 
   mpz_init(factor);
 
+  mpz_t smooth_num, tmp;
+  mpz_init(smooth_num); 
+  mpz_init(tmp);
+ 
   if (0 != mpz_perfect_square_p(n) /* n is a perfect square */) {
     mpz_sqrt(factor, n);
     return;
@@ -422,6 +435,28 @@ void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev) {
   } else {
     printf(" failed.\n");
   }
+
+  /* make sure that the array allocation works */
+  mpz_t factor_expv[smooth_numberc];
+  int powc;
+  for(int i = 0; i < smooth_numberc; ++i) {
+    mpz_init2(factor_expv[i], factor_basec);
+    mpz_set(smooth_num, smooth_numberv[i]);
+    for(int j = 0; j < factor_basec; ++j) {
+      powc = 0;
+      mpz_mod(tmp, smooth_num, factor_basev[j]);
+      while(0 == mpz_cmp_ui(tmp, 0)) {
+        mpz_divexact(smooth_num, smooth_num, factor_basev[j]);
+        ++powc; 
+        mpz_mod(tmp, smooth_num, factor_basev[j]);
+      }
+      if(1 == (powc % 2)) {
+        mpz_setbit(factor_expv[i], j);
+      } 
+    }
+  } 
+
+  gaussian_elimination(factor, n, smooth_numberc, smooth_numberv, factor_expv);
 
   free(factor_basev);
   free(smooth_numberv);
