@@ -191,7 +191,7 @@ void hensel_lift(mpz_t x, const mpz_t r, const mpz_t p, const int k, const mpz_t
   mpz_clear(tmp);
 }
 
-int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv, 
+int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv, mpz_t *factorv,
   const long factor_basec, const mpz_t *factor_basev, const long m, 
   const mpz_t n) {
   
@@ -361,6 +361,7 @@ int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv,
               //mpz_add(smooth_numbersv[*smooth_numberscp], x, n_floored_sqrt);
               // TODO Have another same length vector that corresponds to the pair.
               // TODO It needs to be assed as an argument and malloced.
+              mpz_add(factorv[*smooth_numberscp], x, n_floored_sqrt);
               get_q(smooth_num, x, n, n_floored_sqrt);
               mpz_set(smooth_numbersv[*smooth_numberscp], smooth_num);
               ++(*smooth_numberscp);
@@ -416,30 +417,68 @@ int get_left_null_space(mpz_t *left_null_space, const int smooth_numberc, mpz_t 
 }
 
 void gaussian_elimination(mpz_t factor, const mpz_t n, int smooth_numberc, 
-  mpz_t const *smooth_numberv, const int factor_basec, mpz_t *factor_expv) {
+  mpz_t const *smooth_numberv, mpz_t const *factorv, const int factor_basec, mpz_t *factor_expv) {
  
   int left_null_spacec;
   mpz_t left_null_spacev[smooth_numberc];
   mpz_t prod_x_plus_sq, prod_smooth;
+  mpz_t factor_candidate, tmp1, tmp2;
 
   mpz_init(prod_x_plus_sq);
   mpz_init(prod_smooth);
+  mpz_init(factor_candidate);
+  mpz_init(tmp1);
+  mpz_init(tmp2);
 
   left_null_spacec = get_left_null_space(left_null_spacev, smooth_numberc, factor_expv);
 
   printf("Size of left null space: %d\n", left_null_spacec);
 
   for(int i = 0; i < left_null_spacec; ++i) {
-  
+ 
+ 
     mpz_set_ui(prod_x_plus_sq, 0);
     mpz_set_ui(prod_smooth, 0);
 
-    for(int j = 0; j < 
-
+    size_t num_bits = mpz_sizeinbase(left_null_spacev[i], 2);
+    printf("Num of bits: %zu\n", num_bits);
+    printf("Smooth number c %d\n", smooth_numberc);
+    for(int j = 0; j < num_bits; ++j) {
+      if(1 == mpz_tstbit(left_null_spacev[i], smooth_numberc - 1 - j)) { /* reversed bit index */
+        if((0 == mpz_cmp_ui(prod_x_plus_sq, 0)) || (0 == mpz_cmp_ui(prod_smooth, 0))) {
+          mpz_set(prod_x_plus_sq, factorv[j]);
+          mpz_set(prod_smooth, smooth_numberv[j]);
+        } else {
+          mpz_mul(prod_x_plus_sq, prod_x_plus_sq, factorv[j]);
+          mpz_mul(prod_smooth, prod_smooth, smooth_numberv[j]);
+        } 
+      }  
+    }
+    
+    /* Now we have a candidate for the factor. Check if it is non trivial  */
+    mpz_sqrt(tmp1, prod_smooth);
+    mpz_sub(tmp2, prod_x_plus_sq, tmp1);
+    mpz_gcd(factor_candidate, tmp2, n);
+    if((0 != mpz_cmp_ui(factor_candidate, 0)) && (0 != mpz_cmp(factor_candidate, n))) {
+      printf("[INFO] Found factor!");
+      mpz_set(factor, factor_candidate);
+      break;
+    } else {
+      mpz_add(tmp2, prod_x_plus_sq, tmp1);
+      mpz_gcd(factor_candidate, tmp2, n);
+      if((0 != mpz_cmp_ui(factor_candidate, 0)) && (0 != mpz_cmp(factor_candidate, n))) {
+        printf("[INFO] Found factor!");
+        mpz_set(factor, factor_candidate);
+        break;
+      }
+    } 
   }
 
   mpz_clear(prod_x_plus_sq);
   mpz_clear(prod_smooth);
+  mpz_clear(factor_candidate);
+  mpz_clear(tmp1);
+  mpz_clear(tmp2);
 }
 
 void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev) {
@@ -478,11 +517,12 @@ void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev) {
 
   long smooth_numberc = 0;
   mpz_t *smooth_numberv = (mpz_t *) malloc(b * sizeof(mpz_t));
+  mpz_t *factorv = (mpz_t *) malloc(b * sizeof(mpz_t));
 
   printf("[INFO] Computing smooth numbers...");
   fflush(stdout);
 
-  int smooth_number_result = smooth_numbers(&smooth_numberc, smooth_numberv, factor_basec, factor_basev, m, n);
+  int smooth_number_result = smooth_numbers(&smooth_numberc, smooth_numberv, factorv, factor_basec, factor_basev, m, n);
 
   if(0 == smooth_number_result) {
     printf(" done.\n");
@@ -531,8 +571,9 @@ void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev) {
     }
   } 
  
-  gaussian_elimination(factor, n, smooth_numberc, smooth_numberv, factor_basec, factor_expv);
+  gaussian_elimination(factor, n, smooth_numberc, smooth_numberv, factorv, factor_basec, factor_expv);
 
   free(factor_basev);
   free(smooth_numberv);
+  free(factorv);
 }
