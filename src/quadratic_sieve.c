@@ -380,11 +380,66 @@ int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv,
     
   return 0;
 }
-  
+
+
+int get_left_null_space(mpz_t *left_null_space, const int smooth_numberc, mpz_t *factor_expv) {
+
+  int left_null_spacec = 0;
+  mpz_t id[smooth_numberc];
+
+  /* Create the identity matrix first to create the left null space */
+  for(int i = 0; i < smooth_numberc; ++i) {
+    mpz_init2(id[i], smooth_numberc);
+    mpz_setbit(id[i], smooth_numberc - 1 - i);
+  }
+ 
+  for(int ri = 0; ri < smooth_numberc; ++ri) {
+    mp_bitcnt_t pivot = mpz_scan1(factor_expv[ri], 0);
+    if(pivot < smooth_numberc /* at least one bit is set to 1 */) {
+      for(int ri_inner = ri + 1; ri_inner < smooth_numberc; ++ri_inner) {
+        if(1 == mpz_tstbit(factor_expv[ri_inner], pivot)) {
+          mpz_xor(factor_expv[ri_inner], factor_expv[ri], factor_expv[ri_inner]);    
+          mpz_xor(id[ri_inner], id[ri], id[ri_inner]);    
+        }
+      }    
+    }
+  } 
+
+  for(int ri = 0; ri < smooth_numberc; ++ri) {
+    if(0 == mpz_popcount(factor_expv[ri])) {
+      mpz_set(left_null_space[left_null_spacec], id[ri]);
+      ++left_null_spacec; 
+    } 
+  }
+
+  return left_null_spacec;
+}
+
 void gaussian_elimination(mpz_t factor, const mpz_t n, int smooth_numberc, 
-  mpz_t const *smooth_numberv, mpz_t const *factor_expv) {
+  mpz_t const *smooth_numberv, const int factor_basec, mpz_t *factor_expv) {
+ 
+  int left_null_spacec;
+  mpz_t left_null_spacev[smooth_numberc];
+  mpz_t prod_x_plus_sq, prod_smooth;
+
+  mpz_init(prod_x_plus_sq);
+  mpz_init(prod_smooth);
+
+  left_null_spacec = get_left_null_space(left_null_spacev, smooth_numberc, factor_expv);
+
+  printf("Size of left null space: %d\n", left_null_spacec);
+
+  for(int i = 0; i < left_null_spacec; ++i) {
   
-  // TODO Get left null space
+    mpz_set_ui(prod_x_plus_sq, 0);
+    mpz_set_ui(prod_smooth, 0);
+
+    for(int j = 0; j < 
+
+  }
+
+  mpz_clear(prod_x_plus_sq);
+  mpz_clear(prod_smooth);
 }
 
 void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev) {
@@ -437,6 +492,7 @@ void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev) {
   }
 
   /* make sure that the array allocation works */
+  /*
   mpz_t factor_expv[smooth_numberc];
   int powc;
   for(int i = 0; i < smooth_numberc; ++i) {
@@ -455,8 +511,27 @@ void quadratic_sieve(mpz_t factor, mpz_t n, const int primec, mpz_t *primev) {
       } 
     }
   } 
-
-  gaussian_elimination(factor, n, smooth_numberc, smooth_numberv, factor_expv);
+  */
+  mpz_t factor_expv[smooth_numberc];
+  int powc;
+  for(int i = 0; i < smooth_numberc; ++i) {
+    mpz_init2(factor_expv[i], factor_basec);
+    mpz_set(smooth_num, smooth_numberv[i]);
+    for(int j = 0; j < factor_basec; ++j) {
+      powc = 0;
+      mpz_mod(tmp, smooth_num, factor_basev[j]);
+      while(0 == mpz_cmp_ui(tmp, 0)) {
+        mpz_divexact(smooth_num, smooth_num, factor_basev[j]);
+        ++powc; 
+        mpz_mod(tmp, smooth_num, factor_basev[j]);
+      }
+      if(1 == (powc % 2)) {
+        mpz_setbit(factor_expv[i], j);
+      } 
+    }
+  } 
+ 
+  gaussian_elimination(factor, n, smooth_numberc, smooth_numberv, factor_basec, factor_expv);
 
   free(factor_basev);
   free(smooth_numberv);

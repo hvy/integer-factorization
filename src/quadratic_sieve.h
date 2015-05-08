@@ -17,6 +17,9 @@ void tonelli_shanks(mpz_t x, const mpz_t p, const mpz_t n);
 void hensel_lift(mpz_t x, const mpz_t r, const mpz_t p, const int k, 
   const mpz_t n, const mpz_t n_floor_sqrt);
 
+int get_left_null_space(mpz_t *left_null_space, const int smooth_numberc, 
+  mpz_t *factor_expv);
+
 int smooth_numbers(long *smooth_numberscp, mpz_t *smooth_numbersv,
   const long factor_basec, const mpz_t *factor_basev, const long m, 
   const mpz_t n);

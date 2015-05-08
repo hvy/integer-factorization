@@ -9,6 +9,7 @@
 
 void test_tonelli_shanks();
 void test_hensel_lift();
+void test_left_null_space();
 void test_smooth_numbers();
 
 int main() {
@@ -17,7 +18,8 @@ int main() {
 
   test_tonelli_shanks();
   test_hensel_lift();
-  test_smooth_numbers();
+  test_left_null_space();
+  //test_smooth_numbers();
   
   printf("[INFO] Finished all tests without errors.\n");
 
@@ -114,6 +116,65 @@ void test_hensel_lift() {
   mpz_clear(i1);
   mpz_clear(q);
   mpz_clear(p_pow);
+}
+
+
+void test_left_null_space() {
+
+  printf("[INFO] Starting Left Null Space...\n");
+
+  int max = 5;
+  int left_null_spacec;
+  mpz_t left_null_spacev[5];
+  mpz_t roots[5];
+  mpz_t roots_unmod[5];
+  mpz_t tmp;
+
+  mpz_init(tmp);
+
+  for(int i = 0; i < 5; ++i) {
+    mpz_init2(roots[i], 5);
+    mpz_init2(roots_unmod[i], 5);
+  }
+ 
+  mpz_setbit(roots[0], 0); 
+  mpz_setbit(roots[0], 1); 
+  mpz_setbit(roots[1], 2); 
+  mpz_setbit(roots[1], 4); 
+  mpz_setbit(roots[2], 1); 
+  mpz_setbit(roots[2], 3); 
+  mpz_setbit(roots[3], 0); 
+  mpz_setbit(roots[3], 3); 
+  mpz_setbit(roots[4], 0); 
+  mpz_setbit(roots[4], 1); 
+  
+  for(int i = 0; i < 5; ++i) {
+    mpz_set(roots_unmod[i], roots[i]);
+  }
+
+  left_null_spacec = get_left_null_space(left_null_spacev, max, roots);
+
+  printf("Number of left null spaces: %d\n", left_null_spacec);
+
+  for(int i = 0; i < left_null_spacec; ++i) {
+    printf("{");
+    mpz_out_str(stdout, 2, left_null_spacev[i]);
+    printf("}\n");
+  
+    mpz_set_ui(tmp, 0);
+
+    for(int j = 0; j < 5; ++j) {
+      if(1 == mpz_tstbit(left_null_spacev[i], 4 - j)) {
+        mpz_xor(tmp, tmp, roots_unmod[j]);  
+      }
+    }
+    
+    assert(0 == mpz_popcount(tmp));  
+  }
+
+  mpz_clear(tmp);
+
+  printf(" done.\n");
 }
 
 void test_smooth_numbers() {
