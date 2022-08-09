@@ -188,7 +188,9 @@ void test_smooth_numbers() {
  
   mpz_init_set_str(n, n_str, 10);
   b = smoothness_bound(n);
-  m = sieving_interval(b);       
+  m = sieving_interval(b);
+
+  mpz_t *factorv = (mpz_t *) malloc(b * sizeof(mpz_t));
   
   printf("[INFO] Smoothness bound, B: %ld\n", b);                               
   printf("[INFO] Sieving interval, M: %ld\n", m);        
@@ -215,7 +217,7 @@ void test_smooth_numbers() {
    the factor base */ 
   smooth_numberc = 0;
   smooth_numberv = (mpz_t *) malloc(b * sizeof(mpz_t));
-  smooth_numbers(&smooth_numberc, smooth_numberv, factor_basec, factor_basev, 
+  smooth_numbers(&smooth_numberc, smooth_numberv, factorv, factor_basec, factor_basev,
     m, n);
   
   printf(" done.\n");
